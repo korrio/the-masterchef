@@ -1,73 +1,75 @@
-import { BigInt } from "@graphprotocol/graph-ts"
+import { ethereum, BigInt, BigDecimal, Address } from "@graphprotocol/graph-ts";
 import {
-  MasterChef66,
   Deposit,
   EmergencyWithdraw,
-  OwnershipTransferred,
+  MasterChef66,
   Withdraw
 } from "../generated/MasterChef66/MasterChef66"
-import { ExampleEntity } from "../generated/schema"
+import { Holder } from "../generated/schema"
+import { toDecimal, loadOrCreateTransaction } from "./utils"
 
-export function handleDeposit(event: Deposit): void {
-  // Entities can be loaded from the store using a string ID; this ID
-  // needs to be unique across all entities of the same type
-  let entity = ExampleEntity.load(event.transaction.from.toHex())
 
-  // Entities only exist after they have been saved to the store;
-  // `null` checks allow to create entities on demand
-  if (!entity) {
-    entity = new ExampleEntity(event.transaction.from.toHex())
+function updateBalance(eth_transaction: ethereum.Transaction, eth_block: ethereum.Block, pid: BigInt, holderAddress: Address, value: BigInt, increase: boolean): void {
 
-    // Entity fields can be set using simple assignments
-    entity.count = BigInt.fromI32(0)
+  if (holderAddress.toHex() === '0x0000000000000000000000000000000000000000') return;
+
+  let holderId = holderAddress.toHex();
+  let holder = Holder.load(holderId);
+
+  let transaction = loadOrCreateTransaction(eth_transaction, eth_block);
+  transaction.holder = holderId;
+  transaction.type = increase ? value.equals(BigInt.fromI32(0)) ? 'claim' : 'deposit' : 'withdraw';
+  transaction.save()
+
+  // get stake block from master chef
+  const contract = MasterChef66.bind(Address.fromString("0x4832b9911114aF706d529251979894405FD88b20"));
+  const stakedBlock = contract.getUserStakeBlock(pid, holderAddress);
+
+  if (!holder) {
+    holder = new Holder(holderId);
+    holder.user = holderAddress;
+    holder.pid = pid;
+    holder.balance = new BigDecimal(new BigInt(0));
+    holder.stakedBlock = BigInt.fromI32(0);
+    holder.updatedAt = eth_block.timestamp;
+    holder.count = BigInt.fromI32(0)
   }
 
-  // BigInt and BigDecimal math are supported
-  entity.count = entity.count + BigInt.fromI32(1)
+  const balance = increase ? holder.balance.plus(toDecimal(value, 18)) : holder.balance.minus(toDecimal(value, 18));
+  holder.balance = balance;
+  holder.updatedAt = eth_block.timestamp;
+  holder.stakedBlock = eth_block.number.minus(stakedBlock);
+  holder.count = holder.count.plus(BigInt.fromI32(1));
+  holder.save();
 
-  // Entity fields can be set based on event parameters
-  entity.user = event.params.user
-  entity.pid = event.params.pid
-
-  // Entities can be written to the store with `.save()`
-  entity.save()
-
-  // Note: If a handler doesn't require existing field values, it is faster
-  // _not_ to load the entity from the store. Instead, create it fresh with
-  // `new Entity(...)`, set the fields that should be updated and save the
-  // entity back to the store. Fields that were not set or unset remain
-  // unchanged, allowing for partial updates to be applied.
-
-  // It is also possible to access smart contracts from mappings. For
-  // example, the contract that has emitted the event can be connected to
-  // with:
-  //
-  // let contract = Contract.bind(event.address)
-  //
-  // The following functions can then be called on this contract to access
-  // state variables and other data:
-  //
-  // - contract.BONUS_MULTIPLIER(...)
-  // - contract.boost(...)
-  // - contract.boostLength(...)
-  // - contract.fundBalance(...)
-  // - contract.getMultiplier(...)
-  // - contract.getUserBoostMultipiler(...)
-  // - contract.getUserStakeBlock(...)
-  // - contract.owner(...)
-  // - contract.pendingReward(...)
-  // - contract.poolFund(...)
-  // - contract.poolInfo(...)
-  // - contract.poolLength(...)
-  // - contract.rewardPerBlock(...)
-  // - contract.rewardToken(...)
-  // - contract.startBlock(...)
-  // - contract.totalAllocPoint(...)
-  // - contract.userInfo(...)
 }
 
-export function handleEmergencyWithdraw(event: EmergencyWithdraw): void {}
+export function handleDeposit(event: Deposit): void {
+  const holderAddress = event.params.user;
+  const eth_transaction = event.transaction;
+  const eth_block = event.block;
+  const pid = event.params.pid;
+  const value = event.params.amount;
 
-export function handleOwnershipTransferred(event: OwnershipTransferred): void {}
+  updateBalance(eth_transaction, eth_block, pid, holderAddress, value, true)
+}
 
-export function handleWithdraw(event: Withdraw): void {}
+export function handleEmergencyWithdraw(event: EmergencyWithdraw): void {
+  const holderAddress = event.params.user;
+  const eth_transaction = event.transaction;
+  const eth_block = event.block;
+  const pid = event.params.pid;
+  const value = event.params.amount;
+
+  updateBalance(eth_transaction, eth_block, pid, holderAddress, value, false)
+}
+
+export function handleWithdraw(event: Withdraw): void {
+  const holderAddress = event.params.user;
+  const eth_transaction = event.transaction;
+  const eth_block = event.block;
+  const pid = event.params.pid;
+  const value = event.params.amount;
+
+  updateBalance(eth_transaction, eth_block, pid, holderAddress, value, false)
+}

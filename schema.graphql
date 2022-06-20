@@ -1,6 +1,31 @@
-type ExampleEntity @entity {
+enum Type @entity {
+  deposit
+  withdraw
+  emergencyWithdraw
+  claim
+}
+
+type Holder @entity {
   id: ID!
+  balance: BigDecimal!
+  pid: BigInt!
+  stakedBlock: BigInt!
   count: BigInt!
   user: Bytes! # address
-  pid: BigInt! # uint256
+  transactions: [Transaction!] @derivedFrom(field: "holder")
+  updatedAt: BigInt!
+}
+
+type Transaction @entity {
+  id: ID!
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  blockHash: Bytes!
+  from: Bytes!
+  to: Bytes
+  value: BigInt!
+  gasUsed: BigInt!
+  gasPrice: BigInt!
+  holder: Holder!
+  type: Type!
 }
