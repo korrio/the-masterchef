@@ -18,6 +18,8 @@ dataSources:
         - EmergencyWithdraw
         - OwnershipTransferred
         - Withdraw
+        - Holder
+        - Transaction
       abis:
         - name: MasterChef66
           file: ./abis/MasterChef66.json

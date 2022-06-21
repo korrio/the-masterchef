@@ -1,4 +1,4 @@
-import { ethereum, BigInt, BigDecimal, Address } from "@graphprotocol/graph-ts";
+import { ethereum, BigInt, BigDecimal, Address, dataSource, store, log } from "@graphprotocol/graph-ts";
 import {
   Deposit,
   EmergencyWithdraw,
@@ -22,7 +22,7 @@ function updateBalance(eth_transaction: ethereum.Transaction, eth_block: ethereu
   transaction.save()
 
   // get stake block from master chef
-  const contract = MasterChef66.bind(Address.fromString("0x4832b9911114aF706d529251979894405FD88b20"));
+  const contract = MasterChef66.bind(Address.fromString(dataSource.address().toHex()));
   const stakedBlock = contract.getUserStakeBlock(pid, holderAddress);
 
   if (!holder) {
@@ -42,6 +42,10 @@ function updateBalance(eth_transaction: ethereum.Transaction, eth_block: ethereu
   holder.count = holder.count.plus(BigInt.fromI32(1));
   holder.save();
 
+  // if (balance.le(BigDecimal.fromString("0"))) {
+  //   log.info(`Holder removed: {}`, [holderId]);
+  //   store.remove("Holder", holderId);
+  // }
 }
 
 export function handleDeposit(event: Deposit): void {
