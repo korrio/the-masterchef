@@ -2,7 +2,7 @@ import { ethereum, BigInt, BigDecimal, Address, dataSource, store, log } from "@
 import {
   Deposit,
   EmergencyWithdraw,
-  MasterChef66,
+  MasterChefSB,
   Withdraw
 } from "../generated/MasterChefSB/MasterChefSB"
 import { Holder } from "../generated/schema"
@@ -22,7 +22,7 @@ function updateBalance(eth_transaction: ethereum.Transaction, eth_block: ethereu
   transaction.save()
 
   // get stake block from master chef
-  const contract = MasterChef66.bind(Address.fromString(dataSource.address().toHex()));
+  const contract = MasterChefSB.bind(Address.fromString(dataSource.address().toHex()));
   const stakedBlock = contract.getUserStakeBlock(pid, holderAddress);
 
   if (!holder) {
