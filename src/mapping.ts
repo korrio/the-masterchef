@@ -4,7 +4,7 @@ import {
   EmergencyWithdraw,
   MasterChef66,
   Withdraw
-} from "../generated/MasterChef66/MasterChef66"
+} from "../generated/MasterChefSB/MasterChefSB"
 import { Holder } from "../generated/schema"
 import { toDecimal, loadOrCreateTransaction } from "./utils"
 
